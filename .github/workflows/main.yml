@@ -28,21 +28,44 @@ jobs:
 
     # 3. Despliegue de la Base de Datos (DB_HOST)
     - name: 💾 Despliegue de la Base de Datos
+      # IMPORTANTE: Forzamos el uso de Bash para la correcta resolución de variables y rutas
+      shell: bash 
       run: |
+        # =======================================================
+        # VALIDACIONES DE VARIABLES Y ARCHIVO (Resuelve errores de variables vacías y archivo no encontrado)
+        # =======================================================
+        if [ -z "${DB_HOST}" ]; then
+          echo "Error: La variable DB_HOST está vacía. Verifica la configuración en GitHub Actions/Variables."
+          exit 1
+        fi
+        
+        SCHEMA_PATH="./database/schema.sql"
+        if [ ! -f "$SCHEMA_PATH" ]; then
+          echo "Error: Archivo no encontrado en: $SCHEMA_PATH"
+          echo "Asegúrate de que la estructura de tu repositorio contenga una carpeta 'database' con el archivo 'schema.sql' dentro."
+          exit 1
+        fi
+        
         echo "Copiando esquema SQL y reiniciando en ${DB_HOST}"
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
-        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
-        scp -o StrictHostKeyChecking=no ./database/schema.sql ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
+        # =======================================================
+        # EJECUCIÓN SSH/SCP
+        # =======================================================
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
-        # Ejecuta la carga del esquema SQL. Cambia 'myapp_db' si tu base de datos tiene otro nombre.
+        # 1. Crear directorio remoto (con StrictHostKeyChecking=no)
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
+        
+        # 2. Copiar archivo SQL (con StrictHostKeyChecking=no)
+        scp -o StrictHostKeyChecking=no "$SCHEMA_PATH" ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
+        
+        # 3. Ejecutar carga del esquema (con StrictHostKeyChecking=no)
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "
           psql -h 127.0.0.1 -U ${DB_USER} -d myapp_db -f /home/${SSH_USER}/app/schema.sql
         "
 
     # 4. Despliegue del Backend (BACKEND_HOST)
     - name: 💻 Despliegue del Backend (API Node.js)
+      shell: bash # FUERZA EL USO DE BASH
       run: |
         echo "Desplegando Backend en ${BACKEND_HOST}"
         
@@ -68,6 +91,7 @@ jobs:
 
     # 5. Despliegue del Frontend (FRONTEND_HOST)
     - name: 🌐 Despliegue del Frontend (Nginx)
+      shell: bash # FUERZA EL USO DE BASH
       run: |
         echo "Desplegando Frontend en ${FRONTEND_HOST}"
         
