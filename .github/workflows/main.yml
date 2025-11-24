@@ -55,7 +55,6 @@ jobs:
         echo "Desplegando Backend en ${BACKEND_HOST}"
         
         # 1. Crear contenido de package.json localmente para evitar error EJSONPARSE
-        # Esto reemplaza el archivo package.json vacío que subimos anteriormente
         echo '{
           "name": "backend",
           "version": "1.0.0",
@@ -96,13 +95,13 @@ jobs:
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "mkdir -p /home/${SSH_USER}/app/frontend"
         scp -r -o StrictHostKeyChecking=no ./frontend/* ${SSH_USER}@${FRONTEND_HOST}:/home/${SSH_USER}/app/frontend/
         
-        # 2. Comandos remotos en el Frontend (ELIMINANDO SUDO)
+        # 2. Comandos remotos en el Frontend
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "
-          # Copia archivos a la ruta de Nginx (ASUME QUE EL USUARIO YOSTOR1 ES DUEÑO DE /var/www/html)
+          # Copia archivos a la ruta de Nginx (Funciona por el chown que hicimos)
           cp -r /home/${SSH_USER}/app/frontend/* /var/www/html/
 
-          # Reinicia Nginx (ASUME QUE EL USUARIO YOSTOR1 PUEDE EJECUTAR ESTO SIN SUDO)
-          systemctl restart nginx
+          # Reinicia Nginx (Funciona por la regla NOPASSWD)
+          sudo systemctl restart nginx.service
         "
 
           # Reinicia Nginx
