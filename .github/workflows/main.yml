@@ -28,28 +28,13 @@ jobs:
 
     # 3. Despliegue de la Base de Datos (DB_HOST)
     - name: 💾 Despliegue de la Base de Datos
-      # IMPORTANTE: Forzamos el uso de Bash para la correcta resolución de variables y rutas
       shell: bash 
       run: |
-        # =======================================================
-        # VALIDACIONES DE VARIABLES Y ARCHIVO
-        # =======================================================
-        if [ -z "${DB_HOST}" ]; then
-          echo "Error: La variable DB_HOST está vacía. Verifica la configuración en GitHub Actions/Variables."
-          exit 1
-        fi
-        
+        if [ -z "${DB_HOST}" ]; then echo "Error: La variable DB_HOST está vacía."; exit 1; fi
         SCHEMA_PATH="./database/schema.sql"
-        if [ ! -f "$SCHEMA_PATH" ]; then
-          echo "Error: Archivo no encontrado en: $SCHEMA_PATH"
-          exit 1
-        fi
+        if [ ! -f "$SCHEMA_PATH" ]; then echo "Error: Archivo no encontrado en: $SCHEMA_PATH"; exit 1; fi
         
         echo "Copiando esquema SQL y reiniciando en ${DB_HOST}"
-        
-        # =======================================================
-        # EJECUCIÓN SSH/SCP
-        # =======================================================
         
         # 1. Crear directorio remoto
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
@@ -57,9 +42,7 @@ jobs:
         # 2. Copiar archivo SQL
         scp -o StrictHostKeyChecking=no "$SCHEMA_PATH" ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
         
-        # 3. Ejecutar carga del esquema: Usamos PGPASSWORD para inyectar la contraseña
-        # La variable PGPASSWORD es automáticamente utilizada por el cliente 'psql'.
-        # Es crucial que la variable sea accesible DENTRO del comando SSH remoto.
+        # 3. Ejecutar carga del esquema: Inyectamos PGPASSWORD
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "
           export PGPASSWORD='${DB_PASS}'; 
           psql -h 127.0.0.1 -U ${DB_USER} -d myapp_db -f /home/${SSH_USER}/app/schema.sql
@@ -67,48 +50,59 @@ jobs:
 
     # 4. Despliegue del Backend (BACKEND_HOST)
     - name: 💻 Despliegue del Backend (API Node.js)
-      shell: bash # FUERZA EL USO DE BASH
+      shell: bash 
       run: |
         echo "Desplegando Backend en ${BACKEND_HOST}"
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
+        # 1. Crear contenido de package.json localmente para evitar error EJSONPARSE
+        # Esto reemplaza el archivo package.json vacío que subimos anteriormente
+        echo '{
+          "name": "backend",
+          "version": "1.0.0",
+          "description": "API Gateway",
+          "main": "server.js",
+          "dependencies": {
+            "express": "^4.18.2",
+            "pg": "^8.11.3"
+          }
+        }' > backend/package.json
+        
+        # 2. Copiar archivos (scp)
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${BACKEND_HOST} "mkdir -p /home/${SSH_USER}/app/backend"
         scp -r -o StrictHostKeyChecking=no ./backend/* ${SSH_USER}@${BACKEND_HOST}:/home/${SSH_USER}/app/backend/
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
-        # Comandos remotos en el Backend
+        # 3. Comandos remotos en el Backend
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${BACKEND_HOST} "
-          # 1. Instalar dependencias
+          # Instalar dependencias
           cd /home/${SSH_USER}/app/backend/
-          npm install
-
-          # 2. Crear variables de entorno para el proceso Node
+          npm install --legacy-peer-deps
+          
+          # Crear variables de entorno
           echo \"DB_HOST=${DB_HOST}\" > .env
           echo \"DB_USER=${DB_USER}\" >> .env
           echo \"DB_PASS=${DB_PASS}\" >> .env
           
-          # 3. Reiniciar el proceso PM2 (Asume PM2 ya instalado globalmente)
+          # Reiniciar el proceso PM2
           pm2 restart backend || pm2 start server.js --name backend --time
         "
 
     # 5. Despliegue del Frontend (FRONTEND_HOST)
     - name: 🌐 Despliegue del Frontend (Nginx)
-      shell: bash # FUERZA EL USO DE BASH
+      shell: bash 
       run: |
         echo "Desplegando Frontend en ${FRONTEND_HOST}"
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
+        # 1. Copiar archivos (scp)
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "mkdir -p /home/${SSH_USER}/app/frontend"
         scp -r -o StrictHostKeyChecking=no ./frontend/* ${SSH_USER}@${FRONTEND_HOST}:/home/${SSH_USER}/app/frontend/
         
-        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
-        # Comandos remotos en el Frontend
+        # 2. Comandos remotos en el Frontend (ELIMINANDO SUDO)
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "
-          # Copia archivos a la ruta de Nginx
-          sudo cp -r /home/${SSH_USER}/app/frontend/* /var/www/html/
+          # Copia archivos a la ruta de Nginx (ASUME QUE EL USUARIO YOSTOR1 ES DUEÑO DE /var/www/html)
+          cp -r /home/${SSH_USER}/app/frontend/* /var/www/html/
 
-          # Reinicia Nginx
-          sudo systemctl restart nginx
+          # Reinicia Nginx (ASUME QUE EL USUARIO YOSTOR1 PUEDE EJECUTAR ESTO SIN SUDO)
+          systemctl restart nginx
         "
 
           # Reinicia Nginx
