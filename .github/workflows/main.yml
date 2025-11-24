@@ -19,7 +19,7 @@ env:
 # 2. Job de Despliegue
 jobs:
   deploy:
-    # Ejecuta en tu Runner autohospedado 'yostor1deployer'
+    # Ejecuta en tu Runner autohospedado
     runs-on: self-hosted
 
     steps:
@@ -32,7 +32,7 @@ jobs:
       shell: bash 
       run: |
         # =======================================================
-        # VALIDACIONES DE VARIABLES Y ARCHIVO (Resuelve errores de variables vacías y archivo no encontrado)
+        # VALIDACIONES DE VARIABLES Y ARCHIVO
         # =======================================================
         if [ -z "${DB_HOST}" ]; then
           echo "Error: La variable DB_HOST está vacía. Verifica la configuración en GitHub Actions/Variables."
@@ -42,7 +42,6 @@ jobs:
         SCHEMA_PATH="./database/schema.sql"
         if [ ! -f "$SCHEMA_PATH" ]; then
           echo "Error: Archivo no encontrado en: $SCHEMA_PATH"
-          echo "Asegúrate de que la estructura de tu repositorio contenga una carpeta 'database' con el archivo 'schema.sql' dentro."
           exit 1
         fi
         
@@ -52,14 +51,17 @@ jobs:
         # EJECUCIÓN SSH/SCP
         # =======================================================
         
-        # 1. Crear directorio remoto (con StrictHostKeyChecking=no)
+        # 1. Crear directorio remoto
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
         
-        # 2. Copiar archivo SQL (con StrictHostKeyChecking=no)
+        # 2. Copiar archivo SQL
         scp -o StrictHostKeyChecking=no "$SCHEMA_PATH" ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
         
-        # 3. Ejecutar carga del esquema (con StrictHostKeyChecking=no)
+        # 3. Ejecutar carga del esquema: Usamos PGPASSWORD para inyectar la contraseña
+        # La variable PGPASSWORD es automáticamente utilizada por el cliente 'psql'.
+        # Es crucial que la variable sea accesible DENTRO del comando SSH remoto.
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "
+          export PGPASSWORD='${DB_PASS}'; 
           psql -h 127.0.0.1 -U ${DB_USER} -d myapp_db -f /home/${SSH_USER}/app/schema.sql
         "
 
@@ -104,6 +106,10 @@ jobs:
         ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "
           # Copia archivos a la ruta de Nginx
           sudo cp -r /home/${SSH_USER}/app/frontend/* /var/www/html/
+
+          # Reinicia Nginx
+          sudo systemctl restart nginx
+        "
 
           # Reinicia Nginx
           sudo systemctl restart nginx
