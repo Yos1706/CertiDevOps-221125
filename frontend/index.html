@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despliegue CI/CD Exitoso</title>
+    <!-- Carga de Tailwind CSS para el estilo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 90%;
+            width: 500px;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="container bg-white p-8 rounded-xl shadow-2xl border-t-4 border-indigo-600">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-4 text-center">
+            🚀 Despliegue de 3 Capas Exitoso
+        </h1>
+        <p class="text-gray-600 mb-6 text-center">
+            Confirmación de la comunicación entre Frontend (128) y Backend (129).
+        </p>
+        
+        <div id="status" class="bg-gray-100 p-4 rounded-lg mb-6">
+            <p class="font-semibold text-gray-700">Estado de la Conexión:</p>
+            <p id="connection-status" class="text-yellow-600 font-medium">PENDIENTE: Presiona el botón para probar.</p>
+        </div>
+
+        <button id="test-button" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-300">
+            ✅ Probar Conexión con Backend y DB
+        </button>
+
+        <div id="result-container" class="mt-6 hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-2 border-b pb-1">Resultado de la Prueba de DB</h2>
+            <pre id="api-result" class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-x-auto text-sm"></pre>
+        </div>
+
+        <p id="error-message" class="mt-4 text-red-600 font-semibold hidden"></p>
+    </div>
+
+    <script>
+        // Event listener para el botón de prueba
+        document.getElementById('test-button').addEventListener('click', async () => {
+            const statusElement = document.getElementById('connection-status');
+            const resultContainer = document.getElementById('result-container');
+            const resultElement = document.getElementById('api-result');
+            const errorMessage = document.getElementById('error-message');
+
+            // 1. Mostrar estado de procesamiento
+            statusElement.textContent = 'PROCESANDO: Enviando solicitud al Backend...';
+            statusElement.classList.remove('text-yellow-600', 'text-green-600', 'text-red-600');
+            statusElement.classList.add('text-indigo-600');
+            errorMessage.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+
+            try {
+                // 2. Llamada a la API. Nginx debe redirigir /api/test al Backend (192.168.21.129:3000)
+                const response = await fetch('/api/test'); 
+
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+                }
+
+                // 3. Procesar respuesta
+                const data = await response.json();
+                
+                // Mostrar éxito
+                statusElement.textContent = '¡ÉXITO! La comunicación Frontend ➡️ Backend ➡️ DB funciona.';
+                statusElement.classList.remove('text-indigo-600');
+                statusElement.classList.add('text-green-600');
+                
+                resultElement.textContent = JSON.stringify(data, null, 2);
+                resultContainer.classList.remove('hidden');
+
+            } catch (error) {
+                // Mostrar error
+                console.error("Fallo de conexión o API:", error);
+                statusElement.textContent = 'ERROR: Falló la conexión con el Backend o la DB.';
+                statusElement.classList.remove('text-indigo-600');
+                statusElement.classList.add('text-red-600');
+                
+                errorMessage.textContent = `Verifique: 1) Proxy de Nginx en 128. 2) Backend corriendo en 129. 3) DB activa en 130. Error: ${error.message}`;
+                errorMessage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
