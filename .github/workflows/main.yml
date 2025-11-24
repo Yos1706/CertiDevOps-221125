@@ -107,3 +107,5 @@ jobs:
           # Reinicia Nginx
           sudo systemctl restart nginx
         "
+- name: ⚙️ Checkout del Código
+      uses: actions/checkout@v4
