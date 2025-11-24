@@ -103,8 +103,3 @@ jobs:
           # Reinicia Nginx (Funciona por la regla NOPASSWD)
           sudo systemctl restart nginx.service
         "
-
-          # Reinicia Nginx
-          sudo systemctl restart nginx
-        "
-
