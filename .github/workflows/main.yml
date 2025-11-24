@@ -30,12 +30,14 @@ jobs:
     - name: 💾 Despliegue de la Base de Datos
       run: |
         echo "Copiando esquema SQL y reiniciando en ${DB_HOST}"
-        # Copia el archivo SQL (ajusta la ruta si es necesario, ej. ./database/schema.sql)
-        ssh ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
-        scp ./database/schema.sql ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
         
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "mkdir -p /home/${SSH_USER}/app"
+        scp -o StrictHostKeyChecking=no ./database/schema.sql ${SSH_USER}@${DB_HOST}:/home/${SSH_USER}/app/schema.sql
+        
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
         # Ejecuta la carga del esquema SQL. Cambia 'myapp_db' si tu base de datos tiene otro nombre.
-        ssh ${SSH_USER}@${DB_HOST} "
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${DB_HOST} "
           psql -h 127.0.0.1 -U ${DB_USER} -d myapp_db -f /home/${SSH_USER}/app/schema.sql
         "
 
@@ -43,12 +45,14 @@ jobs:
     - name: 💻 Despliegue del Backend (API Node.js)
       run: |
         echo "Desplegando Backend en ${BACKEND_HOST}"
-        # Copia el código al servidor
-        ssh ${SSH_USER}@${BACKEND_HOST} "mkdir -p /home/${SSH_USER}/app/backend"
-        scp -r ./backend/* ${SSH_USER}@${BACKEND_HOST}:/home/${SSH_USER}/app/backend/
         
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${BACKEND_HOST} "mkdir -p /home/${SSH_USER}/app/backend"
+        scp -r -o StrictHostKeyChecking=no ./backend/* ${SSH_USER}@${BACKEND_HOST}:/home/${SSH_USER}/app/backend/
+        
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
         # Comandos remotos en el Backend
-        ssh ${SSH_USER}@${BACKEND_HOST} "
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${BACKEND_HOST} "
           # 1. Instalar dependencias
           cd /home/${SSH_USER}/app/backend/
           npm install
@@ -66,12 +70,14 @@ jobs:
     - name: 🌐 Despliegue del Frontend (Nginx)
       run: |
         echo "Desplegando Frontend en ${FRONTEND_HOST}"
-        # Copia los archivos estáticos al servidor
-        ssh ${SSH_USER}@${FRONTEND_HOST} "mkdir -p /home/${SSH_USER}/app/frontend"
-        scp -r ./frontend/* ${SSH_USER}@${FRONTEND_HOST}:/home/${SSH_USER}/app/frontend/
         
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "mkdir -p /home/${SSH_USER}/app/frontend"
+        scp -r -o StrictHostKeyChecking=no ./frontend/* ${SSH_USER}@${FRONTEND_HOST}:/home/${SSH_USER}/app/frontend/
+        
+        # OMITIR VERIFICACIÓN DE CLAVE DEL HOST (StrictHostKeyChecking=no)
         # Comandos remotos en el Frontend
-        ssh ${SSH_USER}@${FRONTEND_HOST} "
+        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${FRONTEND_HOST} "
           # Copia archivos a la ruta de Nginx
           sudo cp -r /home/${SSH_USER}/app/frontend/* /var/www/html/
 
